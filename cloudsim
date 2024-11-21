@@ -1,0 +1,145 @@
+import org.cloudbus.cloudsim.*;
+import org.cloudbus.cloudsim.core.CloudSim;
+
+import java.util.*;
+
+public class BasicResourceAllocation {
+
+    public static void main(String[] args) {
+
+        // Initialize CloudSim
+        int numUsers = 1;  // Number of cloud users
+        Calendar calendar = Calendar.getInstance();
+        boolean traceFlag = false;  // Disable event tracing
+        CloudSim.init(numUsers, calendar, traceFlag);
+
+        // Create Datacenter
+        Datacenter datacenter = createDatacenter("Datacenter_0");
+
+        // Create Broker
+        DatacenterBroker broker = createBroker();
+        int brokerId = broker.getId();
+
+        // Create and submit VMs
+        List<Vm> vmList = createVMs(brokerId, 4);  // 4 VMs
+        broker.submitVmList(vmList);
+
+        // Create and submit Cloudlets
+        List<Cloudlet> cloudletList = createCloudlets(brokerId, 8);  // 8 Cloudlets
+        broker.submitCloudletList(cloudletList);
+
+        // Start simulation
+        CloudSim.startSimulation();
+
+        // Stop simulation
+        CloudSim.stopSimulation();
+
+        // Print Cloudlet execution results
+        printCloudletResults(broker.getCloudletReceivedList());
+    }
+
+    private static Datacenter createDatacenter(String name) {
+        List<Host> hostList = new ArrayList<>();
+        int hostCount = 2;  // Number of hosts
+
+        for (int i = 0; i < hostCount; i++) {
+            int hostId = i;
+            int ram = 2048;  // Host RAM
+            long storage = 1000000;  // Storage capacity
+            int bw = 10000;  // Bandwidth
+
+            List<Pe> peList = new ArrayList<>();
+            peList.add(new Pe(0, new PeProvisionerSimple(1000)));  // 1 CPU core
+
+            hostList.add(new Host(
+                    hostId,
+                    new RamProvisionerSimple(ram),
+                    new BwProvisionerSimple(bw),
+                    storage,
+                    peList,
+                    new VmSchedulerTimeShared(peList)
+            ));
+        }
+
+        String arch = "x86";  // Architecture
+        String os = "Linux";  // Operating System
+        String vmm = "Xen";   // Virtual Machine Monitor
+        double timeZone = 10.0;  // GMT+10
+        double cost = 3.0;  // Cost of processing
+        double costPerMem = 0.05;  // Cost of memory
+        double costPerStorage = 0.001;  // Cost of storage
+        double costPerBw = 0.0;  // Cost of bandwidth
+
+        DatacenterCharacteristics characteristics = new DatacenterCharacteristics(
+                arch, os, vmm, hostList, timeZone, cost, costPerMem, costPerStorage, costPerBw);
+
+        Datacenter datacenter = null;
+        try {
+            datacenter = new Datacenter(name, characteristics, new VmAllocationPolicySimple(hostList), new LinkedList<>(), 0);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return datacenter;
+    }
+
+    private static DatacenterBroker createBroker() {
+        DatacenterBroker broker = null;
+        try {
+            broker = new DatacenterBroker("Broker");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return broker;
+    }
+
+    private static List<Vm> createVMs(int brokerId, int count) {
+        List<Vm> vmList = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            vmList.add(new Vm(
+                    i,
+                    brokerId,
+                    1000,  // MIPS
+                    1,     // Number of CPUs
+                    1024,  // RAM
+                    1000,  // Bandwidth
+                    10000, // Storage
+                    "Xen", // VMM
+                    new CloudletSchedulerTimeShared()
+            ));
+        }
+        return vmList;
+    }
+
+    private static List<Cloudlet> createCloudlets(int brokerId, int count) {
+        List<Cloudlet> cloudletList = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            cloudletList.add(new Cloudlet(
+                    i,
+                    40000,  // Length (MI)
+                    1,      // Number of CPUs
+                    300,    // File size
+                    300,    // Output size
+                    new UtilizationModelFull(),
+                    new UtilizationModelFull(),
+                    new UtilizationModelFull()
+            ));
+            cloudletList.get(i).setUserId(brokerId);
+        }
+        return cloudletList;
+    }
+
+    private static void printCloudletResults(List<Cloudlet> list) {
+        String indent = "    ";
+        System.out.println("Cloudlet ID" + indent + "STATUS" + indent + "Data center ID" +
+                indent + "VM ID" + indent + "Time" + indent + "Start Time" + indent + "Finish Time");
+
+        for (Cloudlet cloudlet : list) {
+            System.out.print(indent + cloudlet.getCloudletId() + indent + indent);
+            if (cloudlet.getStatus() == Cloudlet.SUCCESS) {
+                System.out.println("SUCCESS" + indent + indent + cloudlet.getResourceId() +
+                        indent + indent + cloudlet.getVmId() + indent + indent + cloudlet.getActualCPUTime() +
+                        indent + cloudlet.getExecStartTime() + indent + indent + cloudlet.getFinishTime());
+            }
+        }
+    }
+}
