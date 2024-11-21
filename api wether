@@ -1,0 +1,57 @@
+const express = require('express');
+const axios = require('axios');
+const app = express();
+const PORT = 3000;
+
+// Middleware to parse JSON
+app.use(express.json());
+
+// Third-party API base URL and key (replace with the API you're using)
+const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
+const API_KEY = 'your_api_key'; // Replace with your OpenWeatherMap API key
+
+// Route to fetch weather for a city
+app.get('/api/weather/:city', async (req, res) => {
+    const { city } = req.params;
+
+    try {
+        // Make a GET request to the third-party API
+        const response = await axios.get(BASE_URL, {
+            params: {
+                q: city,
+                appid: API_KEY,
+                units: 'metric' // Fetch data in Celsius
+            }
+        });
+
+        // Send the API response back to the client
+        res.status(200).json(response.data);
+    } catch (error) {
+        // Handle errors
+        if (error.response) {
+            // API returned an error response (e.g., city not found)
+            res.status(error.response.status).json({ error: error.response.data.message });
+        } else if (error.request) {
+            // Request was made but no response received
+            res.status(500).json({ error: 'No response from API server' });
+        } else {
+            // Something else went wrong
+            res.status(500).json({ error: 'An unexpected error occurred' });
+        }
+    }
+});
+
+// Start the server
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});
+
+
+
+
+
+
+
+npm install axios
+node app.js
+openwether map
